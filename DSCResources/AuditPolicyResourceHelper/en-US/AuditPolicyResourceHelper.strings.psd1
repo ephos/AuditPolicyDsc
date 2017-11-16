@@ -4,7 +4,8 @@ ConvertFrom-StringData -StringData @'
         IncorrectParameter               = (ERROR) The parameter is incorrect
         UnknownError                     = (ERROR) An unknown error has occured: {0}
         ExecuteAuditpolCommand           = Executing 'auditpol.exe {0}'
-        InvalidSubcategory               = {0} is not a valid Subcategory
+        InvalidSubcategory               = '{0}' is not a valid Subcategory Friendly Name
+        InvalidSubcategoryGuid           = '{0}' is not a valid Subcategory GUID
         GetAuditpolSubcategorySucceed    = (GET) '{0}':'{1}'
         GetAuditPolSubcategoryFailed     = (ERROR) getting '{0}':'{1}'
         SetAuditpolSubcategorySucceed    = (SET) '{0}' audit '{1}' to '{2}'

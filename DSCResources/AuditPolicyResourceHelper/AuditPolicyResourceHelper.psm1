@@ -132,6 +132,8 @@ function Get-AuditPolicySubcategory
         Specifies the audit flag to set.
     .PARAMETER Ensure
         Specifies the state of the audit flag provided. By default this is set to Present.
+    .PARAMETER ByGuid
+        Forces the list if Subcategories to use GUIDs only.
 #>
 function Set-AuditPolicySubcategory
 {
@@ -150,10 +152,14 @@ function Set-AuditPolicySubcategory
         [Parameter()]
         [ValidateSet('Present', 'Absent')]
         [String]
-        $Ensure = 'Present'
+        $Ensure = 'Present',
+
+        [Parameter()]
+        [Switch]
+        $ByGuid
     )
 
-    if ( -Not ( Test-ValidSubcategory -Name $Name ) )
+    if ( -Not ( Test-ValidSubcategory -Name $Name -ByGuid:$ByGuid ) )
     {
         Throw ( $localizedData.InvalidSubcategory -f $Name )
     }
@@ -180,6 +186,8 @@ function Set-AuditPolicySubcategory
         Specifies the audit flag to test.
     .PARAMETER Ensure
         Specifies the state of the audit flag should be in.
+    .PARAMETER ByGuid
+        Forces the list if Subcategories to use GUIDs only.
 #>
 function Test-AuditPolicySubcategory
 {
@@ -199,15 +207,28 @@ function Test-AuditPolicySubcategory
         [Parameter()]
         [ValidateSet('Present', 'Absent')]
         [String]
-        $Ensure
+        $Ensure,
+
+        [Parameter()]
+        [Switch]
+        $ByGuid
     )
 
     [Boolean] $isInDesiredState = $false
 
-    #if ( -Not ( Test-ValidSubcategory -Name $Name ) )
-    #{
-    #    Throw ( $localizedData.InvalidSubcategory -f $Name )
-    #}
+    if ( -Not ( Test-ValidSubcategory -Name $Name -ByGuid:$ByGuid ) )
+    {
+        if ($ByGuid)
+        {
+            $InvalidSubcategoryMessage = $localizedData.InvalidSubcategoryGuid -f $Name
+        }
+        else 
+        {
+            $InvalidSubcategoryMessage = $localizedData.InvalidSubcategory -f $Name
+        }
+
+        Throw $InvalidSubcategoryMessage
+    }
 
     try
     {
@@ -449,25 +470,20 @@ function Set-AuditSubcategory
 
 <#
     .SYNOPSIS
-        Returns the list of valid Subcategories.
+        Returns a hash table of valid subcategories and associated GUID.
     .DESCRIPTION
-        This funciton will check if the list of valid subcategories has already been created.
-        If the list exists it will simply return it. If it doe not exists, it will generate
-        it and return it.
+        This funciton will check if the hashtable has already been created. If the hashtable exists 
+        it will simply return it. If it does not exist, it will generate it and return it.
 #>
 function Get-ValidSubcategoryList
 {
-    [OutputType([String[]])]
+    [OutputType([PsObject])]
     [CmdletBinding()]
-    param ()
+    param()
 
     if ( $null -eq $script:validSubcategoryList )
     {
-        $script:validSubcategoryList = @()
-
-        # Populating $validSubcategoryList uses Invoke-AuditPol and needs to follow the definition.
-        $script:validSubcategoryList = Invoke-AuditPol -Command Get -SubCommand "category:*" |
-                Select-Object -Property Subcategory -ExpandProperty Subcategory
+        $script:validSubcategoryList = Invoke-AuditPol -Command Get -SubCommand "category:*"
     }
 
     return $script:validSubcategoryList
@@ -487,10 +503,23 @@ function Test-ValidSubcategory
     (
         [Parameter(Mandatory = $true)]
         [String]
-        $Name
+        $Name,
+
+        [Parameter()]
+        [Switch]
+        $ByGuid
     )
 
-    if ( ( Get-ValidSubcategoryList ) -icontains $Name )
+    If( $ByGuid )
+    {
+        $validSubcategoryList = ( Get-ValidSubcategoryList ).'Subcategory GUID'
+    }
+    else
+    {
+        $validSubcategoryList = ( Get-ValidSubcategoryList ).Subcategory
+    }
+    
+    if ( $validSubcategoryList -icontains $Name )
     {
         return $true
     }
