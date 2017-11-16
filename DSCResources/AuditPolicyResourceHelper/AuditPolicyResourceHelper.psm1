@@ -161,9 +161,17 @@ function Set-AuditPolicySubcategory
 
     if ( -Not ( Test-ValidSubcategory -Name $Name -ByGuid:$ByGuid ) )
     {
-        Throw ( $localizedData.InvalidSubcategory -f $Name )
-    }
+        if ($ByGuid)
+        {
+            $InvalidSubcategoryMessage = $localizedData.InvalidSubcategoryGuid -f $Name
+        }
+        else 
+        {
+            $InvalidSubcategoryMessage = $localizedData.InvalidSubcategory -f $Name
+        }
 
+        Throw $InvalidSubcategoryMessage
+    }
     try
     {
         Set-AuditSubcategory -Name $Name -AuditFlag $AuditFlag -Ensure $Ensure

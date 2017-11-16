@@ -79,6 +79,7 @@ function Set-TargetResource
         AuditFlag = $AuditFlag
         Ensure = $Ensure
         Verbose = $VerbosePreference
+        ByGuid  = $false
     }
 
     Set-AuditPolicySubcategory @auditPolicySubcategoryParameters
@@ -120,6 +121,7 @@ function Test-TargetResource
         AuditFlag = $AuditFlag
         Ensure = $Ensure
         Verbose = $VerbosePreference
+        ByGuid  = $false
     }
 
     return ( Test-AuditPolicySubcategory @auditPolicySubcategoryParameters )
