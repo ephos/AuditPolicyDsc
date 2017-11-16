@@ -20,7 +20,9 @@ Please check out common DSC Resources [contributing guidelines](
 
 ## Resources
 
-* [AuditPolicySubcategory](#AuditPolicySubcategory): Provides a mechanism to manage advanced auditpolicy subcategory audit flags.
+* [AuditPolicySubcategory](#AuditPolicySubcategory): Provides a mechanism to manage advanced auditpolicy subcategory audit flags using the localized friendly name.
+
+* [AuditPolicySubcategoryGuid](#AuditPolicySubcategoryGuid): Provides a mechanism to manage advanced auditpolicy subcategory audit flags using the GUID.
 
 * [AuditPolicyOption](#AuditPolicyOption): Provides a mechanism to manage audit policy options.
 
@@ -49,8 +51,34 @@ None
 
 #### Examples
 
-* [Set Audit Policy Subcategory Audit Flags](
+* [Set Audit Policy Subcategory Audit Flags (by Name)](
   https://github.com/PowerShell/AuditPolicyDsc/blob/master/Examples/Sample_AuditPolicySubcategory.ps1)
+
+### AuditPolicySubcategoryGuid
+
+Provides a mechanism to manage advanced audit policy subcategory audit flags using the GUID.
+This resource works on Nano Server.
+
+#### Requirements
+
+None
+
+#### Parameters
+
+* **[String] Id _(Key)_**: The GUID of the subcategory in the advanced audit policy to manage.
+
+* **[String] AuditFlag _(Key)_**: The name of the audit flag to apply to the subcategory. { Success | Failure }.
+
+* **[String] Ensure _(Write)_**: Indicates whether the service is present or absent. Defaults to Present. { *Present* | Absent }.
+
+#### Read-Only Properties from Get-TargetResource
+
+None
+
+#### Examples
+
+* [Set Audit Policy Subcategory Audit Flags (by GUID)](
+  https://github.com/PowerShell/AuditPolicyDsc/blob/master/Examples/Sample_AuditPolicySubcategoryGuid.ps1)
 
 ### AuditPolicyOption
 
@@ -104,7 +132,9 @@ None
 
 ### Unreleased
 
-Moved auditpol call to external process
+* Moved auditpol call to external process
+* Moved AuditPolicyCategory Get/Set/Test to private functions in helper module
+* Added AuditPolicyCategoryGuid resource
 
 ### 1.1.0.0
 
