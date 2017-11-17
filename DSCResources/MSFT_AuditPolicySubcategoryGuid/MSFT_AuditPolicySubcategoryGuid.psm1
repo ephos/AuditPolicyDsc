@@ -47,8 +47,8 @@ function Get-TargetResource
 <#
     .SYNOPSIS
         Sets the audit flag for the given subcategory.
-    .PARAMETER Name
-        Specifies the subcategory to set.
+    .PARAMETER Id
+        Specifies the subcategory to set by GUID.
     .PARAMETER AuditFlag
         Specifies the audit flag to set.
     .PARAMETER Ensure
@@ -88,8 +88,8 @@ function Set-TargetResource
 <#
     .SYNOPSIS
         Tests the audit flag state for the given subcategory.
-    .PARAMETER Name
-        Specifies the subcategory to test.
+    .PARAMETER Id
+        Specifies the subcategory to test by GUID.
     .PARAMETER AuditFlag
         Specifies the audit flag to test.
     .PARAMETER Ensure

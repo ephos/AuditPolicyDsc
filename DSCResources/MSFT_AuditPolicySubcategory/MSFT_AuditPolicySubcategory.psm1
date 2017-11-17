@@ -9,7 +9,7 @@ $script:localizedData = Get-LocalizedData -ResourceName 'MSFT_AuditPolicySubcate
     .SYNOPSIS
         Returns the current audit flag for the given subcategory.
     .PARAMETER Name
-        Specifies the subcategory to retrieve by friendly name.
+        Specifies the subcategory to retrieve by localized friendly name.
     .PARAMETER AuditFlag
         Specifies the audit flag to retrieve.
 #>
@@ -48,7 +48,7 @@ function Get-TargetResource
     .SYNOPSIS
         Sets the audit flag for the given subcategory.
     .PARAMETER Name
-        Specifies the subcategory to set.
+        Specifies the subcategory to set by localized friendly name.
     .PARAMETER AuditFlag
         Specifies the audit flag to set.
     .PARAMETER Ensure
@@ -89,7 +89,7 @@ function Set-TargetResource
     .SYNOPSIS
         Tests the audit flag state for the given subcategory.
     .PARAMETER Name
-        Specifies the subcategory to test.
+        Specifies the subcategory to test by localized friendly name.
     .PARAMETER AuditFlag
         Specifies the audit flag to test.
     .PARAMETER Ensure
