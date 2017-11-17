@@ -6,18 +6,6 @@
 Import-Module -Name (Join-Path -Path $moduleRoot `
                                -ChildPath 'DSCResources\AuditPolicyResourceHelper\AuditPolicyResourceHelper.psm1' ) `
                                -Force
-#region Generate data
-
-<#
-    The auditpol utility outputs the list of categories and subcategories in a couple of different
-    ways. Using the /list flag only returns the categories without the associated audit setting,
-    so it is easier to filter later on.
-#>
-
-$script:subcategories = auditpol /get /category:* /R | ConvertFrom-Csv
-
-#endregion
-
 Describe 'Prerequisites' {
 
     # There are several dependencies for both Pester and AuditPolicyDsc that need to be validated.
@@ -43,22 +31,22 @@ Describe "Function Invoke-Auditpol" {
             It 'Should return an object when a single word subcategory is passed in' {
                 $subcategory = Invoke-Auditpol -Command "Get" -SubCommand "Subcategory:Logoff"
                 $subcategory.Subcategory         | Should Be 'Logoff'
-                $subcategory.'Subcategory GUID'  | Should Not BeNullOrEmpty
-                $subcategory.'Inclusion Setting' | Should Not BeNullOrEmpty
+                $subcategory.'Subcategory GUID'  | Should Be '{0CCE9216-69AE-11D9-BED3-505054503030}'
+                $subcategory.'Inclusion Setting' | Should Match 'Success|Failure|No Auditing'
             }
 
             It 'Should return an object when a multi-word subcategory is passed in' {
                 $subcategory = Invoke-Auditpol -Command "Get" -SubCommand "Subcategory:""Credential Validation"""
-                $subcategory.Subcategory | Should Be 'Credential Validation'
-                $subcategory.'Subcategory GUID'  | Should Not BeNullOrEmpty
-                $subcategory.'Inclusion Setting' | Should Not BeNullOrEmpty
+                $subcategory.Subcategory         | Should Be 'Credential Validation'
+                $subcategory.'Subcategory GUID'  | Should Be '{0CCE923F-69AE-11D9-BED3-505054503030}'
+                $subcategory.'Inclusion Setting' | Should Match 'Success|Failure|No Auditing'
             }
 
             It 'Should return an object when an option is passed in' {
                 $option = Invoke-Auditpol -Command "Get" -SubCommand "option:CrashOnAuditFail"
-                $option.Subcategory | Should Be 'option:CrashOnAuditFail'
+                $option.Subcategory         | Should Be 'option:CrashOnAuditFail'
                 $option.'Subcategory GUID'  | Should BeNullOrEmpty
-                $option.'Inclusion Setting' | Should Not BeNullOrEmpty
+                $option.'Inclusion Setting' | Should Match 'Disabled|Enabled'
             }
         }
 
@@ -127,7 +115,7 @@ Describe 'Test-ValidSubcategory' {
     }
 }
 
-Describe 'Function Get-AuditPolicySubcategory'  {
+Describe 'Function Get-AuditPolicySubcategory' {
     
     [String] $subCategory     = 'Logon'
     [String] $subCategoryGuid = '{0CCE9215-69AE-11D9-BED3-505054503030}'
