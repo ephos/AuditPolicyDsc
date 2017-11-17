@@ -33,37 +33,6 @@ Describe 'Prerequisites' {
     }
 }
 
-Describe 'auditpol.exe output' {
-
-    # Verify the raw auditpol output format has not changed across different OS versions and types.
-    It 'Should get auditpol default return with no parameters' {
-        ( auditpol.exe )[0] | Should BeExactly 'Usage: AuditPol command [<sub-command><options>]'
-    }
-
-    It 'Should get CSV format with the /r switch' {
-        ( auditpol.exe /get /subcategory:logon /r )[0] |
-        Should BeExactly "Machine Name,Policy Target,Subcategory,Subcategory GUID,Inclusion Setting,Exclusion Setting"
-    }
-
-    foreach ( $subcategory in $subcategories )
-    {
-        Context "Subcategory: $($subcategory.subcategory)" {
-
-            $auditpolSubcategory = auditpol.exe /get /subcategory:$($subcategory.subcategory) /r | ConvertFrom-Csv
-
-            It 'Should return the subcategory name' {
-                $auditpolSubcategory.subcategory | Should Be $subcategory.subcategory
-            }
-            It 'Should return the subcategory GUID' {
-                $auditpolSubcategory.'subcategory GUID' | Should Be $subcategory.'subcategory GUID'
-            }
-            It 'Should return the Inclusion Setting' {
-                $auditpolSubcategory.'Inclusion Setting' | Should Be $subcategory.'Inclusion Setting'
-            }
-        }
-    }
-}
-
 Describe "Function Invoke-Auditpol" {
 
     InModuleScope AuditPolicyResourceHelper {
