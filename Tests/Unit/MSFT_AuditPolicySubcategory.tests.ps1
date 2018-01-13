@@ -42,7 +42,7 @@ try
             Context "Single word subcategory submit 'Success' and return 'Success'" {
 
                 Mock -CommandName Get-AuditPolicySubcategory -MockWith { return $testReturn } `
-                     -ModuleName MSFT_AuditPolicySubcategory -Verifiable
+                     -ModuleName AuditPolicyResourceHelper
 
                 It 'Should not throw an exception' {
                     { $script:getTargetResourceResult = Get-TargetResource @testParameters } |
@@ -56,19 +56,17 @@ try
                 }
 
                 It 'Should call expected Mocks' {
-                    Assert-VerifiableMocks
                     Assert-MockCalled -CommandName Get-AuditPolicySubcategory -Exactly 1
                 }
             }
 
             Context "Single word subcategory submit 'Success' and return 'Failure'" {
 
-                
                 $testReturn.AuditFlag = 'Failure'
-                $testReturn.add('Ensure','Absent')
+                $testReturn.Ensure    = 'Absent'
 
                 Mock -CommandName Get-AuditPolicySubcategory -MockWith { return $testReturn } `
-                     -ModuleName MSFT_AuditPolicySubcategory -Verifiable
+                     -ModuleName AuditPolicyResourceHelper -Verifiable
 
                 It 'Should not throw an exception' {
                     { $script:getTargetResourceResult = Get-TargetResource @testParameters } |
@@ -76,9 +74,9 @@ try
                 }
 
                 It 'Should return the correct hashtable properties from a Single word subcategory' {
-                    $script:getTargetResourceResult.Name      | Should Be $testParameters.Name
-                    $script:getTargetResourceResult.AuditFlag | Should Be 'Failure'
-                    $script:getTargetResourceResult.Ensure    | Should Be 'Absent'
+                    $script:getTargetResourceResult.Name      | Should Be $testReturn.Name
+                    $script:getTargetResourceResult.AuditFlag | Should Be $testReturn.AuditFlag
+                    $script:getTargetResourceResult.Ensure    | Should Be $testReturn.Ensure
                 }
 
                 It 'Should call expected Mocks' {
@@ -98,14 +96,14 @@ try
                 }
 
                 It 'Should return the correct hashtable properties' {
-                    $script:getTargetResourceResult.Name      | Should Be $testParameters.Name
-                    $script:getTargetResourceResult.AuditFlag | Should Be 'NoAuditing'
-                    $script:getTargetResourceResult.Ensure    | Should Be 'Absent'
+                    $script:getTargetResourceResult.Name      | Should Be $testReturn.Name
+                    $script:getTargetResourceResult.AuditFlag | Should Be $testReturn.AuditFlag
+                    $script:getTargetResourceResult.Ensure    | Should Be $testReturn.Ensure
                 }
 
                 It 'Should call expected Mocks' {
                     Assert-VerifiableMocks
-                    Assert-MockCalled -CommandName Get-AuditPolicySubcategory -Exactly 1
+                    Assert-MockCalled -CommandName Get-AuditPolicySubcategory -Exactly 1 -Scope Context
                 }
             }
 
@@ -127,7 +125,7 @@ try
 
                 It 'Should call expected Mocks' {
                     Assert-VerifiableMocks
-                    Assert-MockCalled -CommandName Get-AuditPolicySubcategory -Exactly 1
+                    Assert-MockCalled -CommandName Get-AuditPolicySubcategory -Exactly 1 -Scope Context
                 }
             }
 

@@ -6,24 +6,150 @@
 Import-Module -Name (Join-Path -Path $moduleRoot `
                                -ChildPath 'DSCResources\AuditPolicyResourceHelper\AuditPolicyResourceHelper.psm1' ) `
                                -Force
-Describe 'Prerequisites' {
+InModuleScope AuditPolicyResourceHelper {
+    Describe 'Prerequisites' {
 
-    # There are several dependencies for both Pester and AuditPolicyDsc that need to be validated.
-    It "Should be running as admin" {
-        # The tests need to run as admin to have access to the auditpol data
-        ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
-        [Security.Principal.WindowsBuiltInRole] "Administrator") | Should Be $true
+        # There are several dependencies for both Pester and AuditPolicyDsc that need to be validated.
+        It "Should be running as admin" {
+            # The tests need to run as admin to have access to the auditpol data
+            ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(`
+            [Security.Principal.WindowsBuiltInRole] "Administrator") | Should Be $true
+        }
+
+        It "Should find auditpol.exe in System32" {
+            # If the auditpol is not located on the system, the entire module will fail
+            Test-Path "$env:SystemRoot\system32\auditpol.exe" | Should Be $true
+        }
     }
 
-    It "Should find auditpol.exe in System32" {
-        # If the auditpol is not located on the system, the entire module will fail
-        Test-Path "$env:SystemRoot\system32\auditpol.exe" | Should Be $true
+    Describe 'Get-AuditPolicySubcategory' {
+
+        It 'Should return the correct hashtable properties' {
+            Mock -CommandName Get-AuditSubcategoryFlag -MockWith { 'SuccessandFailure' }
+            $script:getTargetResourceResult = Get-AuditPolicySubcategory -Name 'Logon' -AuditFlag 'Success'
+            $script:getTargetResourceResult.Name      | Should Be 'Logon'
+            $script:getTargetResourceResult.AuditFlag | Should Be 'Success'
+            $script:getTargetResourceResult.Ensure    | Should Be 'Present'
+        }
+
+        It 'Should return the correct hashtable properties' {
+            Mock -CommandName Get-AuditSubcategoryFlag -MockWith { 'Success' }
+            $script:getTargetResourceResult = Get-AuditPolicySubcategory -Name 'Logon' -AuditFlag 'Success'
+            $script:getTargetResourceResult.Name      | Should Be 'Logon'
+            $script:getTargetResourceResult.AuditFlag | Should Be 'Success'
+            $script:getTargetResourceResult.Ensure    | Should Be 'Present'
+        }
+
+        It 'Should return the correct hashtable properties' {
+            Mock -CommandName Get-AuditSubcategoryFlag -MockWith { 'Failure' }
+            $script:getTargetResourceResult = Get-AuditPolicySubcategory -Name 'Logon' -AuditFlag 'Success'
+            $script:getTargetResourceResult.Name      | Should Be 'Logon'
+            $script:getTargetResourceResult.AuditFlag | Should Be 'Failure'
+            $script:getTargetResourceResult.Ensure    | Should Be 'Absent'
+        }
+
+        It 'Should return the correct hashtable properties' {
+            Mock -CommandName Get-AuditSubcategoryFlag -MockWith { 'NoAuditing' }
+            $script:getTargetResourceResult = Get-AuditPolicySubcategory -Name 'Logon' -AuditFlag 'Success'
+            $script:getTargetResourceResult.Name      | Should Be 'Logon'
+            $script:getTargetResourceResult.AuditFlag | Should Be 'Failure'
+            $script:getTargetResourceResult.Ensure    | Should Be 'Absent'
+        }
     }
-}
 
-Describe "Function Invoke-Auditpol" {
+    Describe 'Set-AuditPolicySubcategory' {
 
-    InModuleScope AuditPolicyResourceHelper {
+        It 'Should throw when invalid subcategory is provided' {
+            Mock -CommandName Test-ValidSubcategory -MockWith { $false }
+            {Set-AuditPolicySubcategory -Name 'Invalid' -AuditFlag 'Success' } | Should Throw
+        }
+
+        It 'Should call Set-AuditSubcategoryFlag to set the configuration' {
+            Mock -CommandName Test-ValidSubcategory -MockWith { $true }
+            Mock -CommandName Set-AuditSubcategoryFlag -MockWith {}
+            Set-AuditPolicySubcategory -Name logon -AuditFlag Success -Ensure Present
+            Assert-MockCalled -CommandName Set-AuditSubcategoryFlag -Exactly 1
+        }
+    }
+
+    Describe 'Test-AuditPolicySubcategory' {
+
+        It 'Should throw when invalid subcategory is provided' {
+            Mock -CommandName Test-ValidSubcategory -MockWith { $false }
+            {Test-AuditPolicySubcategory -Name 'Invalid' -AuditFlag 'Success' } | Should Throw
+        }
+
+        Context 'In Desired State by Name' {
+
+            $tests = @(
+                @{
+                    AuditFlagMock = 'Success'
+                    AuditFlag = 'Success'
+                    Ensure = 'Present'
+                },
+                @{
+                    AuditFlagMock = 'SuccessandFailure'
+                    AuditFlag = 'Success'
+                    Ensure = 'Present'
+                },
+                @{
+                    AuditFlagMock = 'Failure'
+                    AuditFlag = 'Success'
+                    Ensure = 'Absent'
+                },
+                @{
+                    AuditFlagMock = 'NoAuditing'
+                    AuditFlag = 'Success'
+                    Ensure = 'Absent'
+                }
+            )
+            Mock -CommandName Test-ValidSubcategory -MockWith { $true }
+
+            foreach ( $test in $tests )
+            {
+                It "Should be in desired state when Ensure $($test.AuditFlag) is $($test.Ensure) with the system set to $($test.AuditFlagMock)" {
+                    Mock -CommandName Get-AuditSubcategoryFlag -MockWith { $test.AuditFlagMock }
+                    Test-AuditPolicySubcategory -Name 'Logon' -AuditFlag $test.AuditFlag -Ensure $test.Ensure | Should Be $true
+                }
+            }
+        }
+
+        Context 'Not in Desired State by Name' {
+            $tests = @(
+                @{
+                    AuditFlagMock = 'Failure'
+                    AuditFlag = 'Success'
+                    Ensure = 'Present'
+                },
+                @{
+                    AuditFlagMock = 'NoAuditing'
+                    AuditFlag = 'Success'
+                    Ensure = 'Present'
+                },
+                @{
+                    AuditFlagMock = 'Success'
+                    AuditFlag = 'Success'
+                    Ensure = 'Absent'
+                },
+                @{
+                    AuditFlagMock = 'SuccessandFailure'
+                    AuditFlag = 'Success'
+                    Ensure = 'Absent'
+                }
+            )
+            Mock -CommandName Test-ValidSubcategory -MockWith { $true }
+
+            foreach ( $test in $tests )
+            {
+                It "Should NOT be in desired state when Ensure $($test.AuditFlag) is $($test.Ensure) with the system set to $($test.AuditFlagMock)" {
+                    Mock -CommandName Get-AuditSubcategoryFlag -MockWith { $test.AuditFlagMock }
+                    Test-AuditPolicySubcategory -Name 'Logon' -AuditFlag $test.AuditFlag -Ensure $test.Ensure | Should Be $false
+                }
+            }
+        }
+    }
+
+    Describe "Invoke-Auditpol" {
 
         Context 'Subcategory and Option' {
 
@@ -32,14 +158,14 @@ Describe "Function Invoke-Auditpol" {
                 $subcategory = Invoke-Auditpol -Command "Get" -SubCommand "Subcategory:Logoff"
                 $subcategory.Subcategory         | Should Be 'Logoff'
                 $subcategory.'Subcategory GUID'  | Should Be '{0CCE9216-69AE-11D9-BED3-505054503030}'
-                $subcategory.'Inclusion Setting' | Should Match 'Success|Failure|No Auditing'
+                $subcategory.'Inclusion Setting' | Should Match 'Success|Failure|No Auditing|Success and Failure'
             }
 
             It 'Should return an object when a multi-word subcategory is passed in' {
                 $subcategory = Invoke-Auditpol -Command "Get" -SubCommand "Subcategory:""Credential Validation"""
                 $subcategory.Subcategory         | Should Be 'Credential Validation'
                 $subcategory.'Subcategory GUID'  | Should Be '{0CCE923F-69AE-11D9-BED3-505054503030}'
-                $subcategory.'Inclusion Setting' | Should Match 'Success|Failure|No Auditing'
+                $subcategory.'Inclusion Setting' | Should Match 'Success|Failure|No Auditing|Success and Failure'
             }
 
             It 'Should return an object when an option is passed in' {
@@ -74,7 +200,7 @@ Describe "Function Invoke-Auditpol" {
 
             It 'Should be able to call Invoke-Audtipol with backup and not throw' {
                 {$script:auditpolRestoreReturn = Invoke-AuditPol -Command 'Restore' `
-                                                                 -SubCommand "file:$script:path"} |
+                                                                    -SubCommand "file:$script:path"} |
                     Should Not Throw
             }
 
@@ -83,256 +209,213 @@ Describe "Function Invoke-Auditpol" {
             }
         }
     }
-}
 
-Describe 'Test-ValidSubcategory' {
+    Describe 'Get-AuditSubcategoryFlag' {
 
-    InModuleScope AuditPolicyResourceHelper {
-
-        Context 'Invalid Input' {
-
-            It 'Should not throw an exception' {
-                { $script:testValidSubcategoryResult = Test-ValidSubcategory -Name 'Invalid' } |
-                    Should Not Throw
+        $contextList = @(
+            @{
+                'Title'               = 'Get single word audit category success flag'
+                'TestSubcategory'     = 'Logon'
+                'TestSubcategoryGuid' = '{0CCE9215-69AE-11D9-BED3-505054503030}'
+                'TestAuditFlag'       = 'Success'
+            },
+            @{
+                'Title'               = 'Get single word audit category failure flag'
+                'TestSubcategory'     = 'Logon'
+                'TestSubcategoryGuid' = '{0CCE9215-69AE-11D9-BED3-505054503030}'
+                'TestAuditFlag'       = 'Failure'
+            },
+            @{
+                'Title'               = 'Get multi word audit category success flag'
+                'TestSubcategory'     = 'Credential Validation'
+                'TestSubcategoryGuid' = '{0CCE923F-69AE-11D9-BED3-505054503030}'
+                'TestAuditFlag'       = 'Success'
+            },
+            @{
+                'Title'               = 'Get multi word audit category success flag'
+                'TestSubcategory'     = 'Credential Validation'
+                'TestSubcategoryGuid' = '{0CCE923F-69AE-11D9-BED3-505054503030}'
+                'TestAuditFlag'       = 'Failure'
             }
+        )
 
-            It 'Should return false when an invalid Subcategory is passed ' {
-                $script:testValidSubcategoryResult | Should Be $false
-            }
-        }
+        foreach ($context in $contextList)
+        {
+            Context $context.Title {
 
-        Context 'Valid Input' {
+                Mock -CommandName Invoke-Auditpol -MockWith {
+                    @{
+                        'Machine Name'      = $env:COMPUTERNAME
+                        'Policy Target'     = 'System'
+                        'Subcategory'       = $context.TestSubcategory
+                        'Subcategory GUID'  = $context.TestSubcategoryGuid
+                        'Inclusion Setting' = $context.TestAuditFlag
+                        'Exclusion Setting' = ''
+                    }
+                } -ParameterFilter { $Command -eq 'Get' } -Verifiable
 
-            It 'Should not throw an exception' {
-                { $script:testValidSubcategoryResult = Test-ValidSubcategory -Name 'logon' } |
-                    Should Not Throw
-            }
+                It 'Should not throw an exception using the name' {
+                    { $script:getAuditCategoryResult = Get-AuditSubcategoryFlag -Name $context.TestSubcategory } |
+                        Should Not Throw
+                    Assert-VerifiableMocks
+                    Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1 -Scope It
+                }
 
-            It 'Should return true when a valid Subcategory is passed ' {
-                $script:testValidSubcategoryResult | Should Be $true
+                It 'Should return the correct audit flag' {
+                    $script:getAuditCategoryResult | Should Be $context.TestAuditFlag
+                }
+
+                It 'Should not throw an exception using the GUID' {
+                    { $script:getAuditCategoryResult = Get-AuditSubcategoryFlag -Name $context.TestSubcategoryGuid } |
+                        Should Not Throw
+                    Assert-VerifiableMocks
+                    Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1 -Scope It 
+                }
+
+                It 'Should return the correct audit flag' {
+                    $script:getAuditCategoryResult | Should Be $context.TestAuditFlag
+                }
             }
         }
     }
-}
 
-Describe 'Function Get-AuditPolicySubcategory' {
+    Describe 'Set-AuditSubcategoryFlag' {
+
+        $contextList = @(
+            @{
+                'Title'               = 'Set single word audit category Success flag to Present'
+                'TestSubcategory'     = 'Logon'
+                'TestSubcategoryGuid' = '{0CCE9215-69AE-11D9-BED3-505054503030}'
+                'TestAuditFlag'       = 'Success'
+                'TestEnsure'          = 'Present'
+            },
+            @{
+                'Title'               = 'Set single word audit category Success flag to Absent'
+                'TestSubcategory'     = 'Logon'
+                'TestSubcategoryGuid' = '{0CCE9215-69AE-11D9-BED3-505054503030}'
+                'TestAuditFlag'       = 'Success'
+                'TestEnsure'          = 'Absent'
+            },
+            @{
+                'Title'               = 'Set multi-word audit category Success flag to Present'
+                'TestSubcategory'     = 'Credential Validation'
+                'TestSubcategoryGuid' = '{0CCE923F-69AE-11D9-BED3-505054503030}'
+                'TestAuditFlag'       = 'Success'
+                'TestEnsure'          = 'Present'
+            },
+            @{
+                'Title'               = 'Set multi-word audit category Success flag to Absent'
+                'TestSubcategory'     = 'Credential Validation'
+                'TestSubcategoryGuid' = '{0CCE923F-69AE-11D9-BED3-505054503030}'
+                'TestAuditFlag'       = 'Success'
+                'TestEnsure'          = 'Absent'
+            }
+        )
+
+        foreach ( $context in $contextList )
+        {
+            Context $context.Title { 
+
+                $comamnd = @{
+                    Name      = $context.TestSubcategory
+                    AuditFlag = $context.TestAuditFlag
+                    Ensure    = $context.TestEnsure
+                }
     
-    [String] $subCategory     = 'Logon'
-    [String] $subCategoryGuid = '{0CCE9215-69AE-11D9-BED3-505054503030}'
-    Context 'Get single word audit category success flag' {
+                Mock -CommandName Invoke-Auditpol -MockWith { } -ParameterFilter {
+                    $Command -eq 'Set' } -Verifiable
+    
+                It 'Should not throw when setting by Name' {
+                    { Set-AuditSubcategoryFlag @comamnd } | Should Not Throw
+                    Assert-VerifiableMocks
+                    Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1 -Scope It
+                }
 
-        [String] $auditFlag   = 'Success'
-        <#
-            The return is 3 lines Header, blank line, data
-            ComputerName,System,Subcategory,GUID,AuditFlags
-            #>
-            Mock -CommandName Invoke-Auditpol -MockWith {
-                @{
-                'Machine Name'= $env:COMPUTERNAME
-                'Policy Target' = 'System'
-                'Subcategory' = $subCategory
-                'Subcategory GUID' = $subCategoryGuid
-                'Inclusion Setting' = $auditFlag
-                'Exclusion Setting' = ''
+                $comamnd = @{
+                    Name      = $context.TestSubcategoryGuid
+                    AuditFlag = $context.TestAuditFlag
+                    Ensure    = $context.TestEnsure
+                }
+
+                It 'Should not throw when setting by GUID' {
+                    { Set-AuditSubcategoryFlag @comamnd } | Should Not Throw
+                    Assert-VerifiableMocks
+                    Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1 -Scope It
+                }
             }
-        } -ParameterFilter { $Command -eq 'Get' } -Verifiable
-
-        It 'Should not throw an exception' {
-            { $script:getAuditCategoryResult = Get-AuditPolicySubcategory -Name $subCategory } |
-                Should Not Throw
-        }
-
-        It 'Should return the correct value' {
-            $script:getAuditCategoryResult | Should Be $auditFlag
-        }
-
-        It 'Should call expected Mocks' {
-            Assert-VerifiableMocks
-            Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1
         }
     }
 
-    Context 'Get single word audit category failure flag' {
+    Describe 'Get-ValidSubcategoryList' {
+        <# 
+            Get-ValidSubcategoryList generates the list once by calling Invoke-Auditpol and sets 
+            it to a script scoped varaible. If the vaiarbel is populated, Invoke-Auditpol is not
+            called so this test will fail if run multiple times witout the BeforeEach block. 
+        #>
+        BeforeEach {
+            Remove-Variable validSubcategoryList -Scope 'Script' -ErrorAction SilentlyContinue
+        }
 
-        [String] $auditFlag = 'failure'
-        <#
-            The return is 3 lines Header, blank line, data
-            ComputerName,System,Subcategory,GUID,AuditFlags
-            #>
-            Mock -CommandName Invoke-Auditpol -MockWith {
+        It 'Should invoke auditpol to get the list of valid subcategory names' {
+            Mock -CommandName Invoke-Auditpol -MockWith { } -ParameterFilter {
+                $Command -eq 'Get' -and $SubCommand -eq "category:*" } -Verifiable
+
+            Get-ValidSubcategoryList | Out-Null
+            Assert-VerifiableMocks
+            Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1 -Scope It
+        }
+    }
+
+    Describe 'Test-ValidSubcategory' {
+        # Test-ValidSubcategory is exported, but it calls a private function, so InModuleScope is needed.
+        
+        $validSubcategoryListReturn = @{
+            'Subcategory' = @('logon','logoff')
+            'Subcategory GUID' = @('{0CCE9215-69AE-11D9-BED3-505054503030}','{0CCE9216-69AE-11D9-BED3-505054503030}')
+        }
+
+        $contextList = @(
             @{
-                'Machine Name'= $env:COMPUTERNAME
-                'Policy Target' = 'System'
-                'Subcategory' = $subCategory
-                'Subcategory GUID' = $subCategoryGuid
-                'Inclusion Setting' = $auditFlag
-                'Exclusion Setting' = ''
-            }
-        } -ParameterFilter { $Command -eq 'Get' } -Verifiable
-
-        It 'Should not throw an exception' {
-            { $script:getAuditCategoryResult = Get-AuditPolicySubcategory -Name $subCategory } |
-                Should Not Throw
-        }
-
-        It 'Should return the correct value' {
-            $script:getAuditCategoryResult | Should Be $auditFlag
-        }
-
-        It 'Should call expected Mocks' {
-            Assert-VerifiableMocks
-            Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1
-        }
-    }
-
-    [String] $subCategory     = 'Credential Validation'
-    [String] $subCategoryGuid = '{0CCE923F-69AE-11D9-BED3-505054503030}'
-    Context 'Get single word audit category success flag' {
-
-        [String] $auditFlag   = 'Success'
-        # the return is 3 lines Header, blank line, data
-        # ComputerName,System,Subcategory,GUID,AuditFlags
-            Mock -CommandName Invoke-Auditpol -MockWith {
+                'Title'  = 'Valid Name'
+                'Name'   = 'logon'
+                'Return' = $true
+                'ByGuid' = $false
+            },
             @{
-                'Machine Name'= $env:COMPUTERNAME
-                'Policy Target' = 'System'
-                'Subcategory' = $subCategory
-                'Subcategory GUID' = $subCategoryGuid
-                'Inclusion Setting' = $auditFlag
-                'Exclusion Setting' = ''
-            }
-        } -ParameterFilter { $Command -eq 'Get' } -Verifiable
-
-        It 'Should not throw an exception' {
-            { $script:getAuditCategoryResult = Get-AuditPolicySubcategory -Name $subCategory } |
-                Should Not Throw
-        }
-
-        It 'Should return the correct value' {
-            $script:getAuditCategoryResult | Should Be $auditFlag
-        }
-
-        It 'Should call expected Mocks' {
-            Assert-VerifiableMocks
-            Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1
-        }
-    }
-
-    Context 'Get single word audit category failure flag' {
-
-        [String] $auditFlag   = 'failure'
-        # the return is 3 lines Header, blank line, data
-        # ComputerName,System,Subcategory,GUID,AuditFlags
-            Mock -CommandName Invoke-Auditpol -MockWith {
+                'Title'  = 'Invalid Name'
+                'Name'   = 'invalid'
+                'Return' = $false
+                'ByGuid' = $false
+            },
             @{
-                'Machine Name'= $env:COMPUTERNAME
-                'Policy Target' = 'System'
-                'Subcategory' = $subCategory
-                'Subcategory GUID' = $subCategoryGuid
-                'Inclusion Setting' = $auditFlag
-                'Exclusion Setting' = ''
+                'Title'  = 'Valid GUID'
+                'Name'   = '{0CCE9215-69AE-11D9-BED3-505054503030}'
+                'Return' = $true
+                'ByGuid' = $true
+            },
+            @{
+                'Title'  = 'Invalid GUID'
+                'Name'   = '{0CCE9215-69AE-11D9-BED3-50505450ABCD}'
+                'Return' = $false
+                'ByGuid' = $true
             }
-        } -ParameterFilter { $Command -eq 'Get' } -Verifiable
+        )
 
-        It 'Should not throw an exception' {
-            { $script:getAuditCategoryResult = Get-AuditPolicySubcategory -Name $subCategory } |
-                Should Not Throw
-        }
+        foreach ($context in $contextList)
+        {
+            Context $context.Title {
 
-        It 'Should return the correct value' {
-            $script:getAuditCategoryResult | Should Be $auditFlag
-        }
-
-        It 'Should call expected Mocks' {
-            Assert-VerifiableMocks
-            Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1
-        }
-    }
-}
-
-Describe 'Function Set-AuditSubcategory' {
-
-    Context 'Set single word audit category Success flag to Present' {
-
-        Mock -CommandName Invoke-Auditpol -MockWith { } -ParameterFilter {
-            $Command -eq 'Set' } -Verifiable
-
-        $comamnd = @{
-            Name      = "Logon"
-            AuditFlag = "Success"
-            Ensure    = "Present"
-        }
-
-        It 'Should not throw an error' {
-            { Set-AuditSubcategory @comamnd } | Should Not Throw
-        }
-
-        It 'Should call expected Mocks' {
-            Assert-VerifiableMocks
-            Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1
-        }
-    }
-
-    Context 'Set single word audit category Success flag to Absent' {
-
-        Mock -CommandName Invoke-Auditpol -MockWith { } -ParameterFilter {
-            $Command -eq 'Set' } -Verifiable
-
-        $comamnd = @{
-            Name      = "Logon"
-            AuditFlag = "Success"
-            Ensure    = "Absent"
-        }
-
-        It 'Should not throw an exception' {
-            { Set-AuditSubcategory @comamnd } | Should Not Throw
-        }
-
-        It 'Should call expected Mocks' {
-            Assert-VerifiableMocks
-            Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1
-        }
-    }
-
-    Context 'Set multi-word audit category Success flag to Present' {
-
-        Mock -CommandName Invoke-Auditpol -MockWith { } -ParameterFilter {
-            $Command -eq 'Set' } -Verifiable
-
-        $comamnd = @{
-            Name      = "Object Access"
-            AuditFlag = "Success"
-            Ensure    = "Present"
-        }
-
-        It 'Should not throw an exception' {
-            { Set-AuditSubcategory @comamnd } | Should Not Throw
-        }
-
-        It 'Should call expected Mocks' {
-            Assert-VerifiableMocks
-            Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1
-        }
-    }
-
-    Context 'Set multi-word audit category Success flag to Absent' {
-
-        Mock -CommandName Invoke-Auditpol -MockWith { } -ParameterFilter {
-            $Command -eq 'Set' } -Verifiable
-
-        $comamnd = @{
-            Name      = "Object Access"
-            AuditFlag = "Success"
-            Ensure    = "Absent"
-        }
-
-        It 'Should not throw an exception' {
-            { Set-AuditSubcategory @comamnd } | Should Not Throw
-        }
-
-        It 'Should call expected Mocks' {
-            Assert-VerifiableMocks
-            Assert-MockCalled -CommandName Invoke-Auditpol -Exactly 1
+                Mock -CommandName Get-ValidSubcategoryList -MockWith {$validSubcategoryListReturn}
+        
+                It 'Should not throw an ex ception' {
+                    { $script:testValidSubcategoryResult = Test-ValidSubcategory -Name $context.Name -ByGuid:$context.ByGuid  } |
+                        Should Not Throw
+                }
+        
+                It "Should return $($context.Return)" {
+                    $script:testValidSubcategoryResult | Should Be $context.Return
+                }
+            }
         }
     }
 }

@@ -30,9 +30,9 @@ function Get-TargetResource
     )
 
     $auditPolicySubcategoryParameters = @{
-        Name = $Name
+        Name      = $Name
         AuditFlag = $AuditFlag
-        Verbose = $VerbosePreference
+        Verbose   = $VerbosePreference
     }
 
     $auditPolicySubcategory = Get-AuditPolicySubcategory @auditPolicySubcategoryParameters

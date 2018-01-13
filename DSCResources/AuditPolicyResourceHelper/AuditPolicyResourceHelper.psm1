@@ -93,7 +93,7 @@ function Get-AuditPolicySubcategory
 
     try
     {
-        $currentAuditFlag = Get-AuditSubCategory -Name $Name
+        $currentAuditFlag = Get-AuditSubcategoryFlag -Name $Name
         Write-Verbose -Message ( $localizedData.GetAuditpolSubcategorySucceed -f $Name, $AuditFlag )
     }
     catch
@@ -102,12 +102,13 @@ function Get-AuditPolicySubcategory
     }
 
     <#
-        The auditType property returned from Get-AuditSubCategory can be 'None','Success',
-        'Failure', or 'Success and Failure'. Using the match operator will return the correct
+        The auditType property returned from Get-AuditSubcategoryFlag can be 'NoAuditing','Success',
+        'Failure', or 'SuccessandFailure'. Using the match operator will return the correct
         state if both are set.
     #>
     if ( $currentAuditFlag -match $AuditFlag )
     {
+        # The current audit flag can be SuccessandFailure, so only return the specifc flag we need.
         $currentAuditFlag = $AuditFlag
         $ensure = 'Present'
     }
@@ -174,7 +175,7 @@ function Set-AuditPolicySubcategory
     }
     try
     {
-        Set-AuditSubcategory -Name $Name -AuditFlag $AuditFlag -Ensure $Ensure
+        Set-AuditSubcategoryFlag -Name $Name -AuditFlag $AuditFlag -Ensure $Ensure
         Write-Verbose -Message ( $localizedData.SetAuditpolSubcategorySucceed `
                         -f $Name, $AuditFlag, $Ensure )
     }
@@ -226,7 +227,7 @@ function Test-AuditPolicySubcategory
 
     if ( -Not ( Test-ValidSubcategory -Name $Name -ByGuid:$ByGuid ) )
     {
-        if ($ByGuid)
+        if ( $ByGuid )
         {
             $InvalidSubcategoryMessage = $localizedData.InvalidSubcategoryGuid -f $Name
         }
@@ -240,7 +241,7 @@ function Test-AuditPolicySubcategory
 
     try
     {
-        [String] $currentAuditFlag = Get-AuditSubCategory -Name $Name
+        [String] $currentAuditFlag = Get-AuditSubcategoryFlag -Name $Name
         Write-Verbose -Message ( $localizedData.GetAuditpolSubcategorySucceed -f $Name, $AuditFlag )
     }
     catch
@@ -395,9 +396,9 @@ function Invoke-AuditPol
     .OUTPUTS
         A string with the flags that are set for the specificed subcategory
     .EXAMPLE
-        Get-AuditSubCategory -Name 'Logon'
+        Get-AuditSubcategoryFlag -Name 'Logon'
 #>
-function Get-AuditSubCategory
+function Get-AuditSubcategoryFlag
 {
     [CmdletBinding()]
     [OutputType([String])]
@@ -430,9 +431,9 @@ function Get-AuditSubCategory
     .PARAMETER Ensure
         The action to take on the flag
     .EXAMPLE
-        Set-AuditSubcategory -Name 'Logon' -AuditFlag 'Success' -Ensure 'Present'
+        Set-AuditSubcategoryFlag -Name 'Logon' -AuditFlag 'Success' -Ensure 'Present'
 #>
-function Set-AuditSubcategory
+function Set-AuditSubcategoryFlag
 {
     [CmdletBinding(SupportsShouldProcess = $true)]
     param
@@ -502,6 +503,8 @@ function Get-ValidSubcategoryList
         Verifies that the Subcategory is valid.
     .PARAMETER Name
         The name of the Subcategory to validate.
+    .PARAMETER ByGuid
+        A switch to lookup the subcategory by its GUID.
 #>
 function Test-ValidSubcategory
 {
@@ -518,16 +521,16 @@ function Test-ValidSubcategory
         $ByGuid
     )
 
-    If( $ByGuid )
+    if ( $ByGuid )
     {
-        $validSubcategoryList = ( Get-ValidSubcategoryList ).'Subcategory GUID'
+        [string[]] $validSubcategoryList = ( Get-ValidSubcategoryList ).'Subcategory GUID'
     }
     else
     {
-        $validSubcategoryList = ( Get-ValidSubcategoryList ).Subcategory
+        [string[]] $validSubcategoryList = ( Get-ValidSubcategoryList ).Subcategory
     }
     
-    if ( $validSubcategoryList -icontains $Name )
+    if ( $validSubcategoryList -icontains "$Name" )
     {
         return $true
     }
