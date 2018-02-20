@@ -216,7 +216,7 @@ function Test-AuditPolicySubcategory
         [Parameter()]
         [ValidateSet('Present', 'Absent')]
         [String]
-        $Ensure,
+        $Ensure = 'Present',
 
         [Parameter()]
         [Switch]

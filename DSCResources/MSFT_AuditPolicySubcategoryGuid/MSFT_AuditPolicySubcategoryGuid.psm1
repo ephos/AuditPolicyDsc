@@ -71,7 +71,7 @@ function Set-TargetResource
         [Parameter()]
         [ValidateSet('Present', 'Absent')]
         [String]
-        $Ensure = 'Present'
+        $Ensure
     )
 
     $auditPolicySubcategoryParameters = @{
@@ -117,11 +117,11 @@ function Test-TargetResource
     )
 
     $auditPolicySubcategoryParameters = @{
-        Name = $Id
+        Name      = $Id
         AuditFlag = $AuditFlag
-        Ensure = $Ensure
-        Verbose = $VerbosePreference
-        ByGuid  = $true
+        Ensure    = $Ensure
+        Verbose   = $VerbosePreference
+        ByGuid    = $true
     }
     return ( Test-AuditPolicySubcategory @auditPolicySubcategoryParameters )
 }

@@ -71,7 +71,7 @@ function Set-TargetResource
         [Parameter()]
         [ValidateSet('Present', 'Absent')]
         [String]
-        $Ensure = 'Present'
+        $Ensure
     )
 
     $auditPolicySubcategoryParameters = @{
